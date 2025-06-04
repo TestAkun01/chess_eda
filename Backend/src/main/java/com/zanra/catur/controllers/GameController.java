@@ -1,85 +1,87 @@
 package com.zanra.catur.controllers;
 
-import java.util.Optional;
+import com.zanra.catur.dto.GameDTO;
+import com.zanra.catur.dto.ResponseDTO;
+import com.zanra.catur.events.MatchMakingRequestEvent;
+import com.zanra.catur.events.MoveMadeEvent;
+import com.zanra.catur.events.SurenderRequestEvent;
+import com.zanra.catur.kafka.producers.GameEventProducer;
+import com.zanra.catur.models.User;
+
+import jakarta.servlet.http.HttpServletRequest;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
-import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.bind.annotation.*;
 
-import com.zanra.catur.dto.ChessMoveDTO;
-import com.zanra.catur.dto.CreateGameRequest;
-import com.zanra.catur.kafka.producers.ChessMoveProducer;
-import com.zanra.catur.models.Game;
-import com.zanra.catur.models.User;
-import com.zanra.catur.repositories.GameRepository;
-import com.zanra.catur.repositories.UserRepository;
-import com.zanra.catur.services.GameService;
+import java.util.UUID;
 
 @RestController
 @RequestMapping("/api/game")
-@CrossOrigin(origins = {"http://localhost:5173", "http://localhost:2424"}, allowCredentials="true")
 public class GameController {
 
     @Autowired
-    private GameService gameService;
+    private GameEventProducer gameEventProducer;
 
-    @Autowired
-    private UserRepository userRepository;
-
-    @Autowired
-    private GameRepository gameRepository;
-
-    @Autowired
-    private ChessMoveProducer chessMoveProducer;
-
-    @PostMapping("/create")
-    public ResponseEntity<?> createGame(@RequestBody CreateGameRequest request) {
-        Optional<User> white = userRepository.findById(request.getWhitePlayerId());
-        Optional<User> black = userRepository.findById(request.getBlackPlayerId());
-
-        if (white.isEmpty() || black.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("404");
+    @PostMapping("/move")
+    public ResponseEntity<?> makeMove(@RequestBody GameDTO.MoveRequest requestDTO, HttpServletRequest request) {
+        User user = (User) request.getAttribute("user");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
 
-        Game game = gameService.createGame(white.get(), black.get());
+        if (requestDTO.getGameId() == null || requestDTO.getFrom() == null || requestDTO.getTo() == null) {
+            return ResponseEntity.badRequest().body(ResponseDTO.error(HttpStatus.BAD_REQUEST, "Invalid move data"));
+        }
 
-        gameService.updateStatusUser(game.getId(), white.get());
-        gameService.updateStatusUser(game.getId(), black.get());
+        MoveMadeEvent event = new MoveMadeEvent();
+        event.setEventId(UUID.randomUUID().toString());
+        event.setGameId(requestDTO.getGameId());
+        event.setPlayerId(user.getId());
+        event.setFrom(requestDTO.getFrom());
+        event.setTo(requestDTO.getTo());
+        event.setPromotion(requestDTO.getPromotion());
 
-        return ResponseEntity.ok(game);
+        gameEventProducer.sendMoveMade(event);
+
+        return ResponseEntity.ok(ResponseDTO.success("Move submitted", event.getGameId()));
     }
 
-    @PostMapping("/{gameId}/move")
-    public ResponseEntity<?> makeMove(
-            @PathVariable Long gameId,
-            @RequestBody ChessMoveDTO request
-    ) {
-        Optional<Game> game = gameRepository.findById(gameId);
-
-        if (game.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("404");
+    @PostMapping("/surrender")
+    public ResponseEntity<?> surrender(@RequestBody GameDTO.SurenderRequest requestDTO, HttpServletRequest request) {
+        User user = (User) request.getAttribute("user");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
 
-        chessMoveProducer.sendMove(gameId, request.getFen());
+        if (requestDTO.getGameId() == null || requestDTO.getGameId() == null || requestDTO.getPlayerId() == null) {
+            return ResponseEntity.badRequest().body(ResponseDTO.error(HttpStatus.BAD_REQUEST, "Invalid move data"));
+        }
+        SurenderRequestEvent event = new SurenderRequestEvent();
+        event.setEventId(UUID.randomUUID().toString());
+        event.setGameId(requestDTO.getGameId());
+        event.setPlayerId(requestDTO.getPlayerId());
 
-        gameService.saveMove(game.get(), request.getMoveNotation(), request.getFen());
-        return ResponseEntity.ok("Move saved successfully");
+        gameEventProducer.sendSurenderRequest(event);
+        return ResponseEntity.ok(ResponseDTO.success("Surender Request Submitted", event.getEventId()));
     }
 
-    @GetMapping("/{gameId}")
-    public ResponseEntity<?> getGame(@PathVariable Long gameId) {
-        Optional<Game> optGame = gameRepository.findById(gameId);
-        if (optGame.isEmpty()) {
-            return ResponseEntity.status(HttpStatus.NOT_FOUND).body("404");
+    @PostMapping("/matchmaking/join")
+    public ResponseEntity<?> joinMatchmaking(HttpServletRequest request) {
+        User user = (User) request.getAttribute("user");
+        if (user == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+                    .body(ResponseDTO.error(HttpStatus.UNAUTHORIZED, "Unauthorized"));
         }
 
-        return ResponseEntity.ok(optGame.get());
+        MatchMakingRequestEvent event = new MatchMakingRequestEvent();
+        event.setEventId(UUID.randomUUID().toString());
+        event.setUserId(user.getId());
+
+        gameEventProducer.sendMatchMakingRequest(event);
+        return ResponseEntity.ok(ResponseDTO.success("Joined matchmaking queue", event.getEventId()));
     }
 }

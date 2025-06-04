@@ -9,7 +9,10 @@ import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter @Setter
 @Entity
 @Table(name = "chat_messages")
 public class ChatMessage {
@@ -27,21 +30,4 @@ public class ChatMessage {
 
     private LocalDateTime sentAt;
 
-    // getter setter
-
-    public Long getId() {
-        return id;
-    }
-
-    public User getSender() {
-        return sender;
-    }
-
-    public String getMessage() {
-        return message;
-    }
-
-    public LocalDateTime getSentAt() {
-        return sentAt;
-    }
 }

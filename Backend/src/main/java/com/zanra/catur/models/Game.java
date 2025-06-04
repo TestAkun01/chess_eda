@@ -8,8 +8,14 @@ import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
 import jakarta.persistence.ManyToOne;
+import jakarta.persistence.PrePersist;
+import jakarta.persistence.PreUpdate;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "games")
 public class Game {
@@ -30,57 +36,28 @@ public class Game {
     private String fen;
 
     private String status;
+    private String finishReason;
+
+    @ManyToOne
+    @JoinColumn(name = "winner_id")
+    private User winner;
 
     private LocalDateTime startTime;
 
     private LocalDateTime endTime;
 
-    public User getPlayerWhite() {
-        return playerWhite;
+    @PrePersist
+    public void prePersist() {
+        if (startTime == null) {
+            startTime = LocalDateTime.now();
+        }
     }
 
-    public User getPlayerBlack() {
-        return playerBlack;
+    @PreUpdate
+    public void preUpdate() {
+        if ("finished".equalsIgnoreCase(status) && endTime == null) {
+            endTime = LocalDateTime.now();
+        }
     }
 
-    public Long getId() {
-        return id;
-    }
-
-    public String getFen() {
-        return fen;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public LocalDateTime getStartTime() {
-        return startTime;
-    }
-
-    public LocalDateTime getEndTime() {
-        return endTime;
-    }
-
-    public void setPlayerWhite(User white) {
-        playerWhite = white;
-    }
-
-    public void setPlayerBlack(User black) {
-        playerBlack = black;
-    }
-
-    public void setFen(String newFen) {
-        this.fen = newFen;
-    }
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public void setStartTime(LocalDateTime now) {
-        startTime = now;
-    }
 }
-

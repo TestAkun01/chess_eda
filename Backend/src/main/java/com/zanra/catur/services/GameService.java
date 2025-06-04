@@ -1,32 +1,52 @@
 package com.zanra.catur.services;
 
 import java.time.LocalDateTime;
+import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.zanra.catur.models.Game;
 import com.zanra.catur.models.Move;
 import com.zanra.catur.models.User;
 import com.zanra.catur.repositories.GameRepository;
 import com.zanra.catur.repositories.MoveRepository;
-import com.zanra.catur.repositories.UserRepository;
 
 @Service
 public class GameService {
-    @Autowired private GameRepository gameRepository;
-    @Autowired private MoveRepository moveRepository;
-    @Autowired private UserRepository userRepository;
+    @Autowired
+    private GameRepository gameRepository;
+    @Autowired
+    private MoveRepository moveRepository;
+    @Autowired
+    private UserService userService;
 
-    public Game createGame(User white, User black) {
+    public Optional<Game> findById(Long id) {
+        return gameRepository.findById(id);
+    }
+
+    @Transactional
+    public Game createGame(Long whiteId, Long blackId) {
+        User white = userService.findById(whiteId)
+                .orElseThrow(() -> new IllegalArgumentException("White player not found"));
+        User black = userService.findById(blackId)
+                .orElseThrow(() -> new IllegalArgumentException("Black player not found"));
+
         Game game = new Game();
         game.setPlayerWhite(white);
         game.setPlayerBlack(black);
-        game.setFen("startpos");
+        game.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
         game.setStatus("ongoing");
-        return gameRepository.save(game);
+        game = gameRepository.save(game);
+
+        userService.setPlayingStatus(white, game.getId());
+        userService.setPlayingStatus(black, game.getId());
+
+        return game;
     }
 
+    @Transactional
     public void saveMove(Game game, String moveNotation, String fen) {
         Move move = new Move();
         move.setGame(game);
@@ -39,14 +59,25 @@ public class GameService {
         gameRepository.save(game);
     }
 
-    public void updateStatusUser(Long idGame, User user) {
-        user.setGameId(idGame);
-        user.setStatus("playing");
-        userRepository.save(user);
+    @Transactional
+    public void finishGame(Game game, User winner, String finishReason) {
+        game.setStatus("finished");
+        game.setWinner(winner);
+        game.setFinishReason(finishReason);
+        game.setEndTime(LocalDateTime.now());
+        gameRepository.save(game);
+
+        userService.resetStatus(game.getPlayerWhite());
+        userService.resetStatus(game.getPlayerBlack());
     }
 
-    public void resetStatusUser(User user) {
-        user.resetStatus();
-        userRepository.save(user);
-    } 
+    @Transactional
+    public void finishGameById(Long gameId, Long winnerId, String finishReason) {
+        Game game = gameRepository.findById(gameId)
+                .orElseThrow(() -> new RuntimeException("Game not found"));
+        User winner = userService.findById(winnerId)
+                .orElseThrow(() -> new RuntimeException("Winner not found"));
+        finishGame(game, winner, finishReason);
+    }
+
 }
