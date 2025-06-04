@@ -1,14 +1,20 @@
 package com.zanra.catur.models;
 
+import java.io.Serializable;
+
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import lombok.Getter;
+import lombok.Setter;
 
+@Getter
+@Setter
 @Entity
 @Table(name = "users")
-public class User {
+public class User implements Serializable {
     @Id
     @GeneratedValue
     private Long id;
@@ -19,48 +25,16 @@ public class User {
     private String passwordHash;
 
     private int rating;
-    @Column(nullable=true)
+
+    @Column(nullable = true)
     private String status;
-    @Column(nullable=true)
+
+    @Column(nullable = true)
     private Long gameId;
-    // getter setter
-
-    public void setStatus(String status) {
-        this.status = status;
-    }
-
-    public void setGameId(Long gameId) {
-        this.gameId = gameId;
-    } 
 
     public void resetStatus() {
         this.gameId = null;
         this.status = "free";
     }
-
-    public Long getId() {
-        return id;
-    }
-
-    public String getUsername() {
-        return username;
-    }
-
-    public String getPasswordHash() {
-        return passwordHash;
-    }
-
-    public int getRating() {
-        return rating;
-    }
-
-    public String getStatus() {
-        return status;
-    }
-
-    public Long getGameId() {
-        return gameId;
-    }
-
 
 }
