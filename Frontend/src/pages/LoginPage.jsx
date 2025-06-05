@@ -32,7 +32,7 @@ const LoginPage = () => {
           const response = JSON.parse(message.body);
 
           if (response.token) {
-            document.cookie = `token=${response.token}; Path=/; Max-Age=86400; Secure; SameSite=None`;
+            document.cookie = `token=${response.token}; Path=/; Max-Age=86400; SameSite=Lax; Domain=localhost`;
             setIsLoading(false);
             navigate("/");
           } else {

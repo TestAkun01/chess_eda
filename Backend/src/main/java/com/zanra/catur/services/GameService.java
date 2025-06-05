@@ -12,9 +12,12 @@ import com.zanra.catur.models.Move;
 import com.zanra.catur.models.User;
 import com.zanra.catur.repositories.GameRepository;
 import com.zanra.catur.repositories.MoveRepository;
+import com.zanra.catur.repositories.UserRepository;
 
 @Service
 public class GameService {
+    @Autowired
+    private UserRepository userRepository;
     @Autowired
     private GameRepository gameRepository;
     @Autowired
@@ -37,7 +40,7 @@ public class GameService {
         game.setPlayerWhite(white);
         game.setPlayerBlack(black);
         game.setFen("rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1");
-        game.setStatus("ongoing");
+        game.setStatus(Game.GameStatus.ONGOING);
         game = gameRepository.save(game);
 
         userService.setPlayingStatus(white, game.getId());
@@ -60,8 +63,8 @@ public class GameService {
     }
 
     @Transactional
-    public void finishGame(Game game, User winner, String finishReason) {
-        game.setStatus("finished");
+    public void finishGame(Game game, User winner, Game.FinishReason finishReason) {
+        game.setStatus(Game.GameStatus.FINISHED);
         game.setWinner(winner);
         game.setFinishReason(finishReason);
         game.setEndTime(LocalDateTime.now());
@@ -72,12 +75,54 @@ public class GameService {
     }
 
     @Transactional
-    public void finishGameById(Long gameId, Long winnerId, String finishReason) {
+    public void finishGameById(Long gameId, Long winnerId, Game.FinishReason finishReason) {
         Game game = gameRepository.findById(gameId)
                 .orElseThrow(() -> new RuntimeException("Game not found"));
         User winner = userService.findById(winnerId)
                 .orElseThrow(() -> new RuntimeException("Winner not found"));
         finishGame(game, winner, finishReason);
+    }
+
+    public Optional<Game> findActiveGameByUserId(Long userId) {
+        return gameRepository.findByPlayerWhiteIdOrPlayerBlackIdAndStatus(
+                userId, userId, Game.GameStatus.ONGOING);
+    }
+
+    public Game resumeGame(Long userId) {
+        Optional<Game> activeGame = findActiveGameByUserId(userId);
+        if (activeGame.isPresent()) {
+            Game game = activeGame.get();
+            // Update user status ke dalam game
+            User user = userRepository.findById(userId).orElseThrow();
+            user.setStatus(User.UserStatus.IN_GAME);
+            user.setGameId(game.getId());
+            userRepository.save(user);
+            return game;
+        }
+        return null;
+    }
+
+    // Method untuk disconnect user dari game (tidak finish game)
+    public void disconnectUserFromGame(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getGameId() != null) {
+            user.setStatus(User.UserStatus.DISCONNECTED);
+            userRepository.save(user);
+        }
+    }
+
+    // Method untuk reconnect user ke game
+    public Game reconnectUserToGame(Long userId) {
+        User user = userRepository.findById(userId).orElseThrow();
+        if (user.getGameId() != null) {
+            Optional<Game> game = gameRepository.findById(user.getGameId());
+            if (game.isPresent() && Game.GameStatus.ONGOING.equals(game.get().getStatus())) {
+                user.setStatus(User.UserStatus.IN_GAME);
+                userRepository.save(user);
+                return game.get();
+            }
+        }
+        return null;
     }
 
 }

@@ -10,7 +10,7 @@ public class IdempotencyUtil {
     private final Set<String> processedEventIds = new HashSet<>();
 
     public boolean isEventProcessed(String eventId) {
-        return processedEventIds.contains(eventId);
+        return !eventId.isBlank() && processedEventIds.contains(eventId);
     }
 
     public void markEventAsProcessed(String eventId) {

@@ -13,13 +13,15 @@ public class WebSocketConfig implements WebSocketMessageBrokerConfigurer {
     @Override
     public void configureMessageBroker(MessageBrokerRegistry config) {
         config.enableSimpleBroker("/topic");
-        ;
+
         config.setApplicationDestinationPrefixes("/app");
     }
 
     @Override
     public void registerStompEndpoints(StompEndpointRegistry registry) {
-        registry.addEndpoint("/ws").setAllowedOriginPatterns("http://localhost:5173", "http://localhost:2424")
+        registry.addEndpoint("/ws")
+                .setAllowedOriginPatterns("http://localhost:5173", "http://localhost:2424",
+                        "http://www.holy-grails-war.test")
                 .withSockJS();
     }
 

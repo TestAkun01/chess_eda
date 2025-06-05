@@ -21,6 +21,7 @@ import java.util.Optional;
 
 @Component
 public class AuthEventConsumer {
+
     @Autowired
     private UserService userService;
 
@@ -101,4 +102,5 @@ public class AuthEventConsumer {
                 "/topic/auth/logout/" + event.getEventId(),
                 ResponseDTO.success("Logged out successfully"));
     }
+
 }

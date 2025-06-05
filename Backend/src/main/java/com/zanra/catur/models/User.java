@@ -4,6 +4,8 @@ import java.io.Serializable;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
@@ -27,14 +29,23 @@ public class User implements Serializable {
     private int rating;
 
     @Column(nullable = true)
-    private String status;
+    @Enumerated(EnumType.STRING)
+    private UserStatus status;
 
     @Column(nullable = true)
     private Long gameId;
 
     public void resetStatus() {
         this.gameId = null;
-        this.status = "free";
+        this.status = UserStatus.FREE;
+    }
+
+    public enum UserStatus {
+        FREE,
+        PLAYING,
+        IN_GAME,
+        DISCONNECTED,
+        MATCHING
     }
 
 }

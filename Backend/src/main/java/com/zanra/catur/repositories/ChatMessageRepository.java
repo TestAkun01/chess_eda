@@ -13,4 +13,5 @@ public interface ChatMessageRepository extends JpaRepository<ChatMessage, Long> 
     List<ChatMessage> findAllByOrderBySentAtDesc();
 
     List<ChatMessage> findAllByOrderBySentAtAsc();
+
 }

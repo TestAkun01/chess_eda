@@ -47,7 +47,7 @@ public class MatchMakingConsumer {
             return;
         }
 
-        userService.updateStatus(userOpt.get(), "matching");
+        userService.updateStatus(userOpt.get(), User.UserStatus.MATCHING);
 
         if (matchmakingQueue.size() >= 2) {
             Long whiteId = matchmakingQueue.poll();

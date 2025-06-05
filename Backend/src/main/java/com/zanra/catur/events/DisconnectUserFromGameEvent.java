@@ -1,7 +1,5 @@
 package com.zanra.catur.events;
 
-import com.zanra.catur.models.Game;
-
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -11,9 +9,7 @@ import lombok.Setter;
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class GameFinishedEvent {
-    private String eventId;
-    private Long gameId;
-    private Long winnerId;
-    private Game.FinishReason reason;
+public class DisconnectUserFromGameEvent extends BaseEvent {
+    private long gameId;
+    private long userId;
 }

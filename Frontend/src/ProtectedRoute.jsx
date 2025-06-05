@@ -7,8 +7,8 @@ const ProtectedRoute = ({ children }) => {
   useEffect(() => {
     const checkAuth = async () => {
       try {
-        const response = await fetch("/api/auth/me", {
-          credentials: "include", // Mengirim cookie HttpOnly
+        const response = await fetch("http://localhost:8080/api/auth/me", {
+          credentials: "include",
         });
         if (response.ok) {
           setIsAuthenticated(true);

@@ -13,9 +13,11 @@ import com.github.bhlangonijr.chesslib.Board;
 import com.github.bhlangonijr.chesslib.Piece;
 import com.github.bhlangonijr.chesslib.Square;
 import com.github.bhlangonijr.chesslib.move.Move;
+import com.zanra.catur.events.DisconnectUserFromGameEvent;
 import com.zanra.catur.events.GameCreatedEvent;
 import com.zanra.catur.events.GameFinishedEvent;
 import com.zanra.catur.events.MoveMadeEvent;
+import com.zanra.catur.events.ReconnectUserToGameEvent;
 import com.zanra.catur.events.SurenderRequestEvent;
 import com.zanra.catur.kafka.producers.GameEventProducer;
 import com.zanra.catur.models.Game;
@@ -46,6 +48,10 @@ public class GameEventConsumer {
             processMoveMadeEvent((MoveMadeEvent) event);
         } else if (event instanceof SurenderRequestEvent) {
             processSurenderRequestEvent((SurenderRequestEvent) event);
+        } else if (event instanceof DisconnectUserFromGameEvent) {
+            processDisconnectUserFromGameEvent((DisconnectUserFromGameEvent) event);
+        } else if (event instanceof ReconnectUserToGameEvent) {
+            processReconnectUserToGameEvent((ReconnectUserToGameEvent) event);
         }
     }
 
@@ -90,7 +96,13 @@ public class GameEventConsumer {
             finishEvent.setEventId(UUID.randomUUID().toString());
             finishEvent.setGameId(event.getGameId());
             finishEvent.setWinnerId(event.getPlayerId());
-            finishEvent.setReason("checkmate");
+            finishEvent.setReason(Game.FinishReason.CHECKMATE);
+            gameEventProducer.sendGameFinished(finishEvent);
+        } else if (board.isDraw()) {
+            GameFinishedEvent finishEvent = new GameFinishedEvent();
+            finishEvent.setEventId(UUID.randomUUID().toString());
+            finishEvent.setGameId(event.getGameId());
+            finishEvent.setReason(Game.FinishReason.DRAW_AGREEMENT);
             gameEventProducer.sendGameFinished(finishEvent);
         }
 
@@ -113,10 +125,38 @@ public class GameEventConsumer {
                 ? game.getPlayerBlack().getId()
                 : game.getPlayerWhite().getId();
         GameFinishedEvent gameEvent = new GameFinishedEvent();
+        gameEvent.setEventId(UUID.randomUUID().toString());
         gameEvent.setGameId(event.getGameId());
         gameEvent.setWinnerId(winnerId);
-        gameEvent.setReason("Surrender");
+        gameEvent.setReason(Game.FinishReason.SURRENDER);
         gameEventProducer.sendGameFinished(gameEvent);
+        idempotencyUtil.markEventAsProcessed(event.getEventId());
+    }
+
+    private void processDisconnectUserFromGameEvent(DisconnectUserFromGameEvent event) {
+        if (idempotencyUtil.isEventProcessed(event.getEventId())) {
+            return;
+        }
+        Game game = gameService.findById(event.getGameId()).orElseThrow();
+        Long opponentId = game.getPlayerWhite().getId().equals(event.getUserId())
+                ? game.getPlayerBlack().getId()
+                : game.getPlayerWhite().getId();
+        gameService.disconnectUserFromGame(event.getUserId());
+        messagingTemplate.convertAndSend("/topic/game/" + game.getId() + "/disconnect/" + opponentId,
+                Map.of("opponentId", opponentId));
+        idempotencyUtil.markEventAsProcessed(event.getEventId());
+    }
+
+    private void processReconnectUserToGameEvent(ReconnectUserToGameEvent event) {
+        if (idempotencyUtil.isEventProcessed(event.getEventId())) {
+            return;
+        }
+        Game game = gameService.findById(event.getGameId()).orElseThrow();
+        Long opponentId = game.getPlayerWhite().getId().equals(event.getUserId())
+                ? game.getPlayerBlack().getId()
+                : game.getPlayerWhite().getId();
+        messagingTemplate.convertAndSend("/topic/game/" + game.getId() + "/reconnect/" + opponentId,
+                Map.of("opponentId", opponentId));
         idempotencyUtil.markEventAsProcessed(event.getEventId());
     }
 }

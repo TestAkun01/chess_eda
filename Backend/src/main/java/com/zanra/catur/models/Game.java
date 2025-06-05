@@ -4,6 +4,8 @@ import java.time.LocalDateTime;
 
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
+import jakarta.persistence.EnumType;
+import jakarta.persistence.Enumerated;
 import jakarta.persistence.GeneratedValue;
 import jakarta.persistence.Id;
 import jakarta.persistence.JoinColumn;
@@ -35,8 +37,11 @@ public class Game {
     @Column(length = 1000)
     private String fen;
 
-    private String status;
-    private String finishReason;
+    @Enumerated(EnumType.STRING)
+    private GameStatus status;
+
+    @Enumerated(EnumType.STRING)
+    private FinishReason finishReason;
 
     @ManyToOne
     @JoinColumn(name = "winner_id")
@@ -55,9 +60,24 @@ public class Game {
 
     @PreUpdate
     public void preUpdate() {
-        if ("finished".equalsIgnoreCase(status) && endTime == null) {
+        if (GameStatus.FINISHED.equals(status) && endTime == null) {
             endTime = LocalDateTime.now();
         }
     }
 
+    public enum GameStatus {
+        ONGOING,
+        FINISHED,
+        ABANDONED,
+        DRAW
+    }
+
+    public enum FinishReason {
+        SURRENDER,
+        TIMEOUT,
+        CHECKMATE,
+        DISCONNECT,
+        DRAW_AGREEMENT,
+        STALEMATE
+    }
 }

@@ -23,7 +23,7 @@ public class UserService {
         user.setUsername(username);
         user.setPasswordHash(BCrypt.hashpw(rawPassword, BCrypt.gensalt()));
         user.setRating(1200);
-        user.setStatus("free");
+        user.setStatus(User.UserStatus.FREE);
         return userRepository.save(user);
     }
 
@@ -43,14 +43,14 @@ public class UserService {
         return userRepository.findById(id);
     }
 
-    public void updateStatus(User user, String status) {
+    public void updateStatus(User user, User.UserStatus status) {
         user.setStatus(status);
         userRepository.save(user);
     }
 
     public void setPlayingStatus(User user, Long gameId) {
         user.setGameId(gameId);
-        user.setStatus("playing");
+        user.setStatus(User.UserStatus.IN_GAME);
         userRepository.save(user);
     }
 
